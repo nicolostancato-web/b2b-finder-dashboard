@@ -2,10 +2,10 @@ name: Self-Healing Test Agent
 
 on:
   schedule:
-    - cron: '0 * * * *'   # ogni ora
-  workflow_dispatch:        # lancio manuale
+    - cron: '0 * * * *'
+  workflow_dispatch:
   push:
-    branches: [main]        # test su ogni push
+    branches: [main]
 
 jobs:
   test:
@@ -48,10 +48,7 @@ jobs:
       - name: Run Playwright tests
         id: playwright
         run: |
-          npx playwright test \
-            --reporter=json \
-            --output=test-results/artifacts \
-            2>&1 | tee test-results/output.txt
+          npx playwright test --reporter=json,html --output=test-results/artifacts 2>&1 | tee test-results/output.txt
           echo "exit_code=$?" >> $GITHUB_OUTPUT
         continue-on-error: true
 
@@ -65,74 +62,63 @@ jobs:
             playwright-report/
           retention-days: 7
 
-      - name: Create GitHub Issue on failure
-        if: failure() || steps.playwright.outputs.exit_code != '0'
+      - name: Create or update GitHub Issue on failure
+        if: steps.playwright.outputs.exit_code != '0'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fs = require('fs');
-            let summary = 'Test suite fallita.';
-            let failedTests = [];
+            var fs = require('fs');
+            var summary = 'Test suite failed.';
+            var failedTests = [];
 
             try {
-              const results = JSON.parse(
-                fs.readFileSync('test-results/results.json', 'utf8')
-              );
-              const suites = results.suites || [];
-              for (const suite of suites) {
-                for (const spec of (suite.specs || [])) {
-                  for (const test of (spec.tests || [])) {
-                    if (test.status !== 'expected' && test.status !== 'skipped') {
+              var raw = fs.readFileSync('test-results/results.json', 'utf8');
+              var results = JSON.parse(raw);
+              var suites = results.suites || [];
+              for (var i = 0; i < suites.length; i++) {
+                var specs = suites[i].specs || [];
+                for (var j = 0; j < specs.length; j++) {
+                  var tests = specs[j].tests || [];
+                  for (var k = 0; k < tests.length; k++) {
+                    if (tests[k].status !== 'expected' && tests[k].status !== 'skipped') {
                       failedTests.push({
-                        title: spec.title,
-                        status: test.status,
-                        error: test.results?.[0]?.error?.message || 'Unknown error',
+                        title: specs[j].title,
+                        status: tests[k].status,
+                        error: (tests[k].results && tests[k].results[0] && tests[k].results[0].error && tests[k].results[0].error.message) || 'Unknown error'
                       });
                     }
                   }
                 }
               }
-              summary = `${failedTests.length} test falliti su ${results.stats?.total || '?'} totali.`;
-            } catch(e) {
-              summary = 'Impossibile leggere risultati test.';
+              summary = failedTests.length + ' tests failed out of ' + (results.stats && results.stats.total || '?') + ' total.';
+            } catch (e) {
+              summary = 'Could not read test results.';
             }
 
-            const failList = failedTests.slice(0, 10).map(t =>
-              `- **${t.title}**: \`${t.status}\` — ${t.error}`
-            ).join('\n');
+            var failList = failedTests.slice(0, 10).map(function(t) {
+              return '- **' + t.title + '**: `' + t.status + '` - ' + t.error;
+            }).join('\n');
 
-            const body = `## 🚨 Bug Rilevato dal Self-Healing Test Agent
+            var body = '## Bug Detected by Self-Healing Test Agent\n\n'
+              + '**Timestamp:** ' + new Date().toISOString() + '\n'
+              + '**Run:** [#' + context.runNumber + '](' + context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId + ')\n\n'
+              + '### Summary\n' + summary + '\n\n'
+              + '### Failed Tests\n' + (failList || 'See artifacts for details') + '\n\n'
+              + '### How to Fix\n'
+              + '1. Download artifacts (playwright-results-' + context.runNumber + ')\n'
+              + '2. Open `playwright-report/index.html`\n'
+              + '3. Analyze the failing test\n'
+              + '4. Fix the code\n'
+              + '5. Push to main for automatic re-test\n\n'
+              + '---\n*Created automatically by Self-Healing Test Agent*';
 
-**Timestamp:** ${new Date().toISOString()}
-**Run:** [#${context.runNumber}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
-
-### Sommario
-${summary}
-
-### Test Falliti
-${failList || 'Vedi artifacts per dettagli'}
-
-### Screenshots
-Scarica gli artifacts dal link sopra per vedere i screenshot.
-
-### Come Fixare
-1. Scarica gli artifacts (playwright-results-${context.runNumber})
-2. Apri \`playwright-report/index.html\`
-3. Analizza il test fallito
-4. Fixa il codice
-5. Pusha su main → re-test automatico
-
----
-*Creato automaticamente da Self-Healing Test Agent*`;
-
-            // Controlla se esiste già issue aperta
-            const existingIssues = await github.rest.issues.listForRepo({
+            var existingIssues = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
               labels: 'automated,bug',
               state: 'open',
-              per_page: 5,
+              per_page: 5
             });
 
             if (existingIssues.data.length > 0) {
@@ -140,59 +126,43 @@ Scarica gli artifacts dal link sopra per vedere i screenshot.
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: existingIssues.data[0].number,
-                body: `## Update — Run #${context.runNumber}\n\n${summary}\n\n${failList}`,
+                body: 'Update - Run #' + context.runNumber + '\n\n' + summary + '\n\n' + failList
               });
             } else {
               await github.rest.issues.create({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                title: `[AUTO] Bug rilevato: ${failedTests[0]?.title || 'test fallito'}`,
+                title: '[AUTO] Bug detected: ' + ((failedTests[0] && failedTests[0].title) || 'test failed'),
                 body: body,
-                labels: ['automated', 'bug'],
+                labels: ['automated', 'bug']
               });
             }
 
       - name: Close issue if all tests pass
-        if: success() && steps.playwright.outputs.exit_code == '0'
+        if: steps.playwright.outputs.exit_code == '0'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const existingIssues = await github.rest.issues.listForRepo({
+            var existingIssues = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
               labels: 'automated,bug',
-              state: 'open',
+              state: 'open'
             });
 
-            for (const issue of existingIssues.data) {
+            for (var i = 0; i < existingIssues.data.length; i++) {
+              var issue = existingIssues.data[i];
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issue.number,
-                body: `✅ **Bug risolto** — tutti i test passano nel run #${context.runNumber}`,
+                body: 'All tests passing in run #' + context.runNumber
               });
               await github.rest.issues.update({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issue.number,
-                state: 'closed',
+                state: 'closed'
               });
             }
-
-      - name: Send email notification on failure
-        if: failure()
-        run: |
-          if [ -n "$RESEND_API_KEY" ]; then
-            curl -s -X POST 'https://api.resend.com/emails' \
-              -H "Authorization: Bearer $RESEND_API_KEY" \
-              -H 'Content-Type: application/json' \
-              -d '{
-                "from": "B2B Finder Tests <onboarding@resend.dev>",
-                "to": ["nicolostancato@gmail.com"],
-                "subject": "🚨 Bug rilevato dashboard B2B Finder",
-                "html": "<h2>Bug rilevato nel Self-Healing Test Agent</h2><p>Run #'"${{ github.run_number }}"'</p><p>Apri GitHub Actions per i dettagli.</p>"
-              }'
-          fi
-        env:
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
