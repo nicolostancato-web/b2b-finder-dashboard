@@ -69,7 +69,7 @@ export default function AppSidebar() {
         <nav className="flex-1 py-4 overflow-y-auto">
           <ul className="space-y-1 px-2">
             {NAV.map(({ path, label, icon }) => {
-              const active = pathname === path || (path === '/dashboard' && pathname === '/dashboard')
+              const active = pathname === path || pathname.startsWith(path + '/')
               return (
                 <li key={path}>
                   <Link
