@@ -1,0 +1,20 @@
+{
+  "valid": {
+    "code": "2134",
+    "ragione_sociale": "Larioelettra S.r.l.",
+    "sede_comune": "Como",
+    "tier": "strategic"
+  },
+  "valid2": {
+    "code": "5678",
+    "ragione_sociale": "Atlas Costruzioni S.r.l.",
+    "sede_comune": "Bergamo",
+    "tier": "watcher"
+  },
+  "invalid": {
+    "code": "9999"
+  },
+  "empty": {
+    "code": ""
+  }
+}
