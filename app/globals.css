@@ -1,36 +1,76 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import 'mapbox-gl/dist/mapbox-gl.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-inter: Inter, sans-serif;
+
+  --color-brand-500: #10B981;
+  --color-brand-400: #34D399;
+  --color-brand-600: #059669;
+
+  --color-match-alta: #10B981;
+  --color-match-media: #F59E0B;
+  --color-match-bassa: #F97316;
+
+  --color-gray-950: #0A0A0F;
+  --color-gray-900: #111118;
+  --color-gray-800: #1C1C2E;
+  --color-gray-700: #2D2D42;
+  --color-gray-600: #4B4B6A;
+  --color-gray-500: #6B6B8A;
+  --color-gray-400: #9191A8;
+  --color-gray-300: #B8B8CC;
+  --color-gray-200: #D8D8E8;
+  --color-gray-100: #F0F0F5;
+  --color-gray-50: #F8F8FC;
+
+  --color-white: #FFFFFF;
+
+  /* TailAdmin compatibility */
+  --color-boxdark: #24303F;
+  --color-boxdark-2: #1A222C;
+}
 
 @layer base {
   :root {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 100%;
-    --card: 240 15% 10%;
-    --card-foreground: 0 0% 100%;
-    --popover: 240 15% 8%;
-    --popover-foreground: 0 0% 100%;
-    --primary: 160 84% 39%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 10% 16%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 240 10% 16%;
-    --muted-foreground: 240 5% 63%;
-    --accent: 240 10% 16%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 240 10% 16%;
-    --input: 240 10% 16%;
-    --ring: 160 84% 39%;
-    --radius: 0.75rem;
+    color-scheme: dark;
   }
 
   * {
-    @apply border-border;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
   }
 
   body {
-    @apply bg-background text-foreground;
+    font-family: Inter, system-ui, sans-serif;
+    background-color: var(--color-gray-950);
+    color: var(--color-white);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Mapbox overrides — mantieni mappa sopra il layout */
+  .mapboxgl-map {
+    position: absolute;
+    inset: 0;
+  }
+
+  .mapboxgl-ctrl-top-right {
+    top: 12px;
+    right: 12px;
+  }
+
+  /* Scrollbar dark */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-gray-900);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-gray-700);
+    border-radius: 3px;
   }
 }
