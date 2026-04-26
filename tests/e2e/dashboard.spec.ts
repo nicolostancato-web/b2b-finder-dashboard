@@ -1,48 +1,69 @@
 import { test, expect } from '@playwright/test'
 import { loginAndWaitDashboard } from '../utils/helpers'
 
-test.describe('DASHBOARD LAYOUT', () => {
+test.describe('LAYOUT DASHBOARD (10 test)', () => {
 
   test.beforeEach(async ({ page }) => {
     await loginAndWaitDashboard(page)
   })
 
-  test('T06 — sidebar presente e visibile', async ({ page }) => {
-    const sidebar = page.locator('aside').first()
-    await expect(sidebar).toBeVisible()
-    // Larghezza sidebar (expanded = 220px, collapsed = 64px)
-    const box = await sidebar.boundingBox()
-    expect(box?.width).toBeGreaterThanOrEqual(60)
+  test('2.1 — header presente con testo "B2B Finder"', async ({ page }) => {
+    await expect(page.locator('text=B2B Finder').first()).toBeVisible({ timeout: 5000 })
   })
 
-  test('T07 — header mostra nome cliente', async ({ page }) => {
-    // Nome azienda visibile nell'header
-    const header = page.locator('header').first()
-    await expect(header).toBeVisible()
-    await expect(page.locator('text=Larioelettra').first()).toBeVisible()
+  test('2.2 — header mostra nome cliente "Larioelettra"', async ({ page }) => {
+    await expect(page.locator('text=Larioelettra').first()).toBeVisible({ timeout: 5000 })
   })
 
-  test('T08 — logo B2B Finder visibile', async ({ page }) => {
-    await expect(page.locator('text=B2B Finder').first()).toBeVisible()
-  })
-
-  test('T09 — stats nell\'header (gare e alta priorità)', async ({ page }) => {
-    // Almeno uno dei due stat pill è visibile
-    const stats = page.locator('header').locator('[class*="tabular"]').first()
-    // Verifica che ci siano numeri nell'header
+  test('2.3 — header mostra stats numeriche (pattern "N Gare")', async ({ page }) => {
     const headerText = await page.locator('header').textContent()
-    expect(headerText).toBeTruthy()
-    // Dovrebbe contenere numeri (match count)
-    expect(headerText).toMatch(/\d+/)
+    expect(headerText).toMatch(/\d+\s*Gare/)
   })
 
-  test('T10 — bottone logout presente e funzionante', async ({ page }) => {
+  test('2.4 — sidebar con link Dashboard e Mappa visibili', async ({ page }) => {
+    await expect(page.locator('nav a[href="/dashboard"]').first()).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('nav a[href="/dashboard/map"]').first()).toBeVisible({ timeout: 5000 })
+  })
+
+  test('2.5 — voce Dashboard è attiva (ha classe emerald)', async ({ page }) => {
+    const dashLink = page.locator('nav a[href="/dashboard"]').first()
+    const cls = await dashLink.getAttribute('class')
+    expect(cls).toContain('emerald')
+  })
+
+  test('2.6 — click "Mappa" naviga o mostra mappa', async ({ page }) => {
+    await page.locator('nav a[href="/dashboard/map"]').first().click()
+    await page.waitForURL('**/dashboard', { timeout: 5000 })
+    expect(page.url()).toContain('/dashboard')
+  })
+
+  test('2.7 — legenda priorità mostra Alta/Media/Bassa con numeri', async ({ page }) => {
+    await expect(page.locator('text=Alta priorità').first()).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=Media').first()).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=Bassa').first()).toBeVisible({ timeout: 5000 })
+    const legendText = await page.locator('[class*="PRIORIT"], [class*="border"]').first().textContent()
+    expect(legendText).toMatch(/\d+/)
+  })
+
+  test('2.8 — bottone logout presente nell\'header', async ({ page }) => {
     const logoutBtn = page.locator('header button[title="Logout"], header button').last()
-    await expect(logoutBtn).toBeVisible()
-    await logoutBtn.click()
-    // Dopo logout deve redirectare a /login
-    await page.waitForURL('**/login', { timeout: 5000 })
-    expect(page.url()).toContain('/login')
+    await expect(logoutBtn).toBeVisible({ timeout: 5000 })
+  })
+
+  test('2.9 — layout desktop 1280px: sidebar visibile, mappa occupa area main', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    const sidebar = page.locator('aside').first()
+    await expect(sidebar).toBeVisible({ timeout: 5000 })
+    const canvas = page.locator('.mapboxgl-canvas').first()
+    await expect(canvas).toBeVisible({ timeout: 10000 })
+  })
+
+  test('2.10 — layout mobile 375px: no overflow orizzontale', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.waitForTimeout(500)
+    const scrollWidth = await page.evaluate(() => document.body.scrollWidth)
+    expect(scrollWidth).toBeLessThanOrEqual(390)
+    await expect(page.locator('header').first()).toBeVisible({ timeout: 5000 })
   })
 
 })

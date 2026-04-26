@@ -5,24 +5,23 @@ import { useSidebar } from '@/context/SidebarContext'
 
 const NAV = [
   {
-    path: '/dashboard',
-    label: 'Dashboard',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
-        <rect x="3" y="3" width="7" height="7" rx="1"/>
-        <rect x="14" y="3" width="7" height="7" rx="1"/>
-        <rect x="3" y="14" width="7" height="7" rx="1"/>
-        <rect x="14" y="14" width="7" height="7" rx="1"/>
-      </svg>
-    ),
-  },
-  {
-    path: '/dashboard/map',
+    path: '/dashboard/mappa',
     label: 'Mappa',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
         <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
         <circle cx="12" cy="9" r="2.5"/>
+      </svg>
+    ),
+  },
+  {
+    path: '/dashboard/lista',
+    label: 'Lista',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
       </svg>
     ),
   },

@@ -14,6 +14,7 @@ interface MapViewProps {
   matches: Match[]
   centerLat: number
   centerLng: number
+  clientName?: string
   activeFilter: string | null
   selectedOcid: string | null
   onSelectMatch: (match: Match) => void
@@ -23,12 +24,14 @@ export default function MapView({
   matches,
   centerLat,
   centerLng,
+  clientName,
   activeFilter,
   selectedOcid,
   onSelectMatch,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
+  const clientMarkerRef = useRef<mapboxgl.Marker | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
 
   useEffect(() => {
@@ -51,12 +54,13 @@ export default function MapView({
     map.on('load', () => {
       setMapLoaded(true)
 
+      // FIX 4: Cluster source
       map.addSource('matches', {
         type: 'geojson',
         data: buildGeoJSON(matches, null, null),
         cluster: true,
-        clusterMaxZoom: 11,
-        clusterRadius: 45,
+        clusterMaxZoom: 13,
+        clusterRadius: 50,
       })
 
       // Cluster glow
@@ -67,12 +71,13 @@ export default function MapView({
         filter: ['has', 'point_count'],
         paint: {
           'circle-color': '#3B82F6',
-          'circle-radius': ['step', ['get', 'point_count'], 26, 10, 32, 50, 40],
+          'circle-radius': ['step', ['get', 'point_count'], 28, 10, 36, 50, 44],
           'circle-opacity': 0.15,
           'circle-blur': 1,
         },
       })
 
+      // Cluster circle
       map.addLayer({
         id: 'clusters',
         type: 'circle',
@@ -80,13 +85,14 @@ export default function MapView({
         filter: ['has', 'point_count'],
         paint: {
           'circle-color': '#3B82F6',
-          'circle-radius': ['step', ['get', 'point_count'], 16, 10, 22, 50, 28],
-          'circle-opacity': 0.9,
-          'circle-stroke-width': 1.5,
+          'circle-radius': ['step', ['get', 'point_count'], 18, 10, 24, 50, 30],
+          'circle-opacity': 0.92,
+          'circle-stroke-width': 2,
           'circle-stroke-color': 'rgba(255,255,255,0.3)',
         },
       })
 
+      // Cluster count label
       map.addLayer({
         id: 'cluster-count',
         type: 'symbol',
@@ -95,12 +101,12 @@ export default function MapView({
         layout: {
           'text-field': '{point_count_abbreviated}',
           'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
-          'text-size': 11,
+          'text-size': 12,
         },
         paint: { 'text-color': '#ffffff' },
       })
 
-      // Glow layer for single points
+      // FIX 3: Single point glow (color per label)
       map.addLayer({
         id: 'point-glow',
         type: 'circle',
@@ -109,15 +115,15 @@ export default function MapView({
         paint: {
           'circle-color': ['get', 'color'],
           'circle-radius': [
-            'interpolate', ['linear'], ['get', 'score'],
-            60, 14, 85, 20, 100, 26
+            'match', ['get', 'label'],
+            'alta', 20, 'media', 16, 'bassa', 12, 12
           ],
-          'circle-opacity': 0.12,
+          'circle-opacity': 0.18,
           'circle-blur': 1,
         },
       })
 
-      // Main point layer
+      // FIX 3: Single point (color + size by label)
       map.addLayer({
         id: 'unclustered-point',
         type: 'circle',
@@ -126,20 +132,19 @@ export default function MapView({
         paint: {
           'circle-color': ['get', 'color'],
           'circle-radius': [
-            'interpolate', ['linear'], ['get', 'score'],
-            60, 5, 85, 8, 100, 11
+            'match', ['get', 'label'],
+            'alta', 9, 'media', 7, 'bassa', 5, 5
           ],
-          'circle-stroke-width': [
-            'case', ['==', ['get', 'ocid'], ''], 0, 2
-          ],
-          'circle-stroke-color': 'rgba(255,255,255,0.4)',
-          'circle-opacity': 0.92,
+          'circle-stroke-width': 2,
+          'circle-stroke-color': 'rgba(255,255,255,0.5)',
+          'circle-opacity': 0.95,
         },
       })
 
-      // Click handlers
+      // FIX 4: Click cluster → zoom in to expand
       map.on('click', 'clusters', (e) => {
         const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] })
+        if (!features[0]) return
         const clusterId = (features[0].properties as { cluster_id: number }).cluster_id
         const src = map.getSource('matches') as mapboxgl.GeoJSONSource
         src.getClusterExpansionZoom(clusterId, (err, zoom) => {
@@ -148,6 +153,7 @@ export default function MapView({
         })
       })
 
+      // Click single point → open slide-over
       map.on('click', 'unclustered-point', (e) => {
         const feature = e.features?.[0]
         if (!feature?.properties) return
@@ -161,18 +167,52 @@ export default function MapView({
       map.on('mouseleave', 'clusters', () => { map.getCanvas().style.cursor = '' })
     })
 
+    map.on('load', () => {
+      requestAnimationFrame(() => map.resize())
+    })
+
     mapRef.current = map
-    return () => { map.remove(); mapRef.current = null }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (typeof window !== 'undefined') (window as any).__mapboxMap = map
+
+    // FIX 5: Client location pin
+    const pinEl = document.createElement('div')
+    pinEl.style.cssText = `
+      width: 36px; height: 36px;
+      background: white;
+      border: 3px solid #3B82F6;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      cursor: default;
+      box-shadow: 0 0 0 4px rgba(59,130,246,0.25), 0 4px 12px rgba(0,0,0,0.5);
+      z-index: 10;
+    `
+    pinEl.textContent = '🏢'
+    pinEl.title = clientName ? `Sede: ${clientName}` : 'La tua sede'
+
+    clientMarkerRef.current = new mapboxgl.Marker(pinEl)
+      .setLngLat([centerLng, centerLat])
+      .setPopup(new mapboxgl.Popup({ offset: 20 }).setText(clientName ? `La tua sede: ${clientName}` : 'La tua sede'))
+      .addTo(map)
+
+    return () => {
+      map.remove()
+      mapRef.current = null
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).__mapboxMap
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Update GeoJSON when filter or selection changes
   useEffect(() => {
     if (!mapLoaded || !mapRef.current) return
     const src = mapRef.current.getSource('matches') as mapboxgl.GeoJSONSource | undefined
     src?.setData(buildGeoJSON(matches, activeFilter, selectedOcid))
   }, [matches, activeFilter, selectedOcid, mapLoaded])
 
-  return <div ref={containerRef} className="absolute inset-0" />
+  return <div ref={containerRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
 }
 
 function buildGeoJSON(
@@ -187,7 +227,7 @@ function buildGeoJSON(
       .filter(m => m.gara_lat != null && m.gara_lng != null)
       .map(m => ({
         type: 'Feature' as const,
-        geometry: { type: 'Point' as const, coordinates: [m.gara_lng!, m.gara_lat!] },
+        geometry: { type: 'Point' as const, coordinates: [Number(m.gara_lng), Number(m.gara_lat)] },
         properties: {
           ocid: m.gara_ocid,
           color: COLORS[m.match_label] ?? '#6B6B7B',

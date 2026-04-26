@@ -16,7 +16,7 @@ export default function AppHeader({ profile, matches }: AppHeaderProps) {
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' })
-    router.push('/login')
+    window.location.href = '/login'
   }
 
   function handleToggle() {
@@ -25,12 +25,9 @@ export default function AppHeader({ profile, matches }: AppHeaderProps) {
   }
 
   return (
-    <header className={`fixed top-0 right-0 z-40 flex items-center justify-between h-16
+    <header className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between h-16
       bg-[#111118]/80 backdrop-blur-md border-b border-white/[0.06] px-4
-      transition-all duration-300
-      ${isExpanded ? 'left-[220px]' : 'left-[64px]'}
-      max-lg:left-0
-    `}>
+    ">
       {/* Hamburger */}
       <button
         onClick={handleToggle}

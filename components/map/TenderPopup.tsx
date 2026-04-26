@@ -71,8 +71,8 @@ export default function TenderPopup({ match, onClose, clientCode }: TenderPopupP
           <ul className="space-y-2">
             {reasons.map((r, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-[#E0E0F0]">
-                <span className="text-emerald-400 mt-0.5 flex-shrink-0">✓</span>
-                <span>{r}</span>
+                <span className="mt-0.5 flex-shrink-0">{r.icon}</span>
+                <span><strong>{r.titolo}</strong> — {r.spiegazione}</span>
               </li>
             ))}
             {reasons.length === 0 && (
